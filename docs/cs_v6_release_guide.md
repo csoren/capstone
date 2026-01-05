@@ -403,6 +403,8 @@ Such an instruction is ill-defined in LLVM and should be fixed upstream.
 | m68k_op_mem.in_disp, m68k_op_mem.out_disp | These fields are now signed instead of unsigned. | The M68K architecture uses sign extended displacements for effective address calculation. |
 | m68k_op_mem.disp_size | Defines if the .disp field was encoded as a byte (false) or word (true) | Necessary for accurate printing. |
 | m68k_op_mem.in_disp_size, m68k_op_mem.out_disp_size | Defines if the .in_disp and .out_disp fields respectively were encoded as words (false) or longs (true) | Necessary for accurate printing. |
+| CS_OPT_SYNTAX_MOTOROLA | This option changes the printing of new >= 68020 addressing modes to follow the Motorola syntax. | This syntax is used in the 68000 Programmer's Reference Manual |
+| CS_OPT_SYNTAX_MOTOROLA_000 | This option changes the printing of new <= 68010 addressing modes to follow the new Motorola syntax. | Without this option, the original addressing modes are printed in the original style. The option changes the printing of these modes to use the new syntax. |
 
 
 ### Notes about AArch64, SystemZ and ARM renaming
@@ -539,7 +541,7 @@ There is no compatibility layer for type identifiers and detail names at the mom
 +intel       Intel syntax (only: x86)
 +masm        Intel MASM syntax (only: x86)
 +noregname   Number only registers (only: Arm64, ARM, LoongArch, Mips, PowerPC)
-+moto        Use $ as hex prefix (only: MOS65XX)
++moto        Use Motorola syntax where applicable (only: MOS65XX, M68K)
 +regalias    Use register aliases, like r9 > sb (only: ARM, Arm64)
 +percentage  Adds % in front of the registers (only: PowerPC)
 +nodollar    Removes $ in front of the registers (only: Mips)

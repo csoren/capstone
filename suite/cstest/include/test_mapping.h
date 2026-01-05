@@ -217,6 +217,9 @@ static const TestOptionMapEntry test_option_map[] = {
 	  .opt = { .type = CS_OPT_SYNTAX, .val = CS_OPT_SYNTAX_PERCENT } },
 	{ .str = "CS_OPT_SYNTAX_NO_DOLLAR",
 	  .opt = { .type = CS_OPT_SYNTAX, .val = CS_OPT_SYNTAX_NO_DOLLAR } },
+	{ .str = "CS_OPT_SYNTAX_MOTOROLA_M68K_000",
+	  .opt = { .type = CS_OPT_SYNTAX,
+		   .val = CS_OPT_SYNTAX_MOTOROLA_M68K_000 } },
 };
 
 static const cs_enum_id_map cs_enum_map[] = {

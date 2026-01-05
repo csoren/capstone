@@ -99,6 +99,11 @@ static const char *const s_instruction_names[] = {
 #endif
 
 #ifndef CAPSTONE_DIET
+
+#define IS_SYNTAX_MOTOROLA_000(csh) \
+	((csh)->syntax & CS_OPT_SYNTAX_MOTOROLA_M68K_000)
+#define IS_SYNTAX_MOTOROLA_020(csh) ((csh)->syntax & CS_OPT_SYNTAX_MOTOROLA)
+
 static const char *getRegName(m68k_reg reg)
 {
 	return s_reg_names[(int)reg];
@@ -159,7 +164,8 @@ static void registerPair(SStream *O, const cs_m68k_op *op)
 }
 
 static void printAddressingMode(SStream *O, unsigned int pc,
-				const cs_m68k *inst, const cs_m68k_op *op)
+				const cs_m68k *inst, const cs_m68k_op *op,
+				const cs_struct *csh)
 {
 	switch (op->address_mode) {
 	case M68K_AM_NONE:
@@ -194,12 +200,25 @@ static void printAddressingMode(SStream *O, unsigned int pc,
 		SStream_concat(O, "-(a%d)", (op->reg - M68K_REG_A0));
 		break;
 	case M68K_AM_REGI_ADDR_DISP:
-		SStream_concat(O, "%s$%x(a%d)", op->mem.disp < 0 ? "-" : "",
-			       abs(op->mem.disp),
-			       (op->mem.base_reg - M68K_REG_A0));
+		if (IS_SYNTAX_MOTOROLA_000(csh)) {
+			SStream_concat(O, "(%s$%x.w,%sa%d)",
+				       op->mem.disp < 0 ? "-" : "",
+				       abs(op->mem.disp), s_spacing,
+				       (op->mem.base_reg - M68K_REG_A0));
+		} else {
+			SStream_concat(O, "%s$%x(a%d)",
+				       op->mem.disp < 0 ? "-" : "",
+				       abs(op->mem.disp),
+				       (op->mem.base_reg - M68K_REG_A0));
+		}
 		break;
 	case M68K_AM_PCI_DISP:
-		SStream_concat(O, "$%x(pc)", pc + 2 + op->mem.disp);
+		if (IS_SYNTAX_MOTOROLA_000(csh)) {
+			SStream_concat(O, "($%x.w,%spc)", pc + 2 + op->mem.disp,
+				       s_spacing);
+		} else {
+			SStream_concat(O, "$%x(pc)", pc + 2 + op->mem.disp);
+		}
 		break;
 	case M68K_AM_ABSOLUTE_DATA_SHORT:
 		SStream_concat(O, "$%x.w", op->imm);
@@ -226,41 +245,95 @@ static void printAddressingMode(SStream *O, unsigned int pc,
 		SStream_concat(O, "#$%x", op->imm);
 		break;
 	case M68K_AM_PCI_INDEX_8_BIT_DISP:
-		SStream_concat(O, "$%x(pc,%s%s.%c)", pc + 2 + op->mem.disp,
-			       s_spacing, getRegName(op->mem.index_reg),
-			       op->mem.index_size ? 'l' : 'w');
+		if (IS_SYNTAX_MOTOROLA_000(csh)) {
+			SStream_concat(O, "($%x.b,%spc,%s%s.%c)",
+				       pc + 2 + op->mem.disp, s_spacing,
+				       s_spacing, getRegName(op->mem.index_reg),
+				       op->mem.index_size ? 'l' : 'w');
+		} else {
+			SStream_concat(O, "$%x(pc,%s%s.%c)",
+				       pc + 2 + op->mem.disp, s_spacing,
+				       getRegName(op->mem.index_reg),
+				       op->mem.index_size ? 'l' : 'w');
+		}
 		break;
 	case M68K_AM_AREGI_INDEX_8_BIT_DISP:
-		SStream_concat(O, "%s$%x(%s,%s%s.%c)",
-			       op->mem.disp < 0 ? "-" : "", abs(op->mem.disp),
-			       getRegName(op->mem.base_reg), s_spacing,
-			       getRegName(op->mem.index_reg),
-			       op->mem.index_size ? 'l' : 'w');
+		if (IS_SYNTAX_MOTOROLA_000(csh)) {
+			SStream_concat(O, "(%s$%x.b,%s%s,%s%s.%c)",
+				       op->mem.disp < 0 ? "-" : "",
+				       abs(op->mem.disp), s_spacing,
+				       getRegName(op->mem.base_reg), s_spacing,
+				       getRegName(op->mem.index_reg),
+				       op->mem.index_size ? 'l' : 'w');
+		} else {
+			SStream_concat(O, "%s$%x(%s,%s%s.%c)",
+				       op->mem.disp < 0 ? "-" : "",
+				       abs(op->mem.disp),
+				       getRegName(op->mem.base_reg), s_spacing,
+				       getRegName(op->mem.index_reg),
+				       op->mem.index_size ? 'l' : 'w');
+		}
 		break;
 	case M68K_AM_PCI_INDEX_BASE_DISP:
 	case M68K_AM_AREGI_INDEX_BASE_DISP:
+		if (IS_SYNTAX_MOTOROLA_020(csh)) {
+			SStream_concat0(O, "(");
 
-		if (op->address_mode == M68K_AM_PCI_INDEX_BASE_DISP) {
-			SStream_concat(O, "$%x", pc + 2 + op->mem.in_disp);
-		} else if (op->mem.in_disp != 0) {
-			SStream_concat(O, "%s$%x",
-				       op->mem.in_disp >= 0 ? "" : "-",
-				       abs(op->mem.in_disp));
+			if (op->address_mode == M68K_AM_PCI_INDEX_BASE_DISP) {
+				SStream_concat(O, "$%x.%c,%spc,%s",
+					       pc + 2 + op->mem.in_disp,
+					       op->mem.disp_size ? 'l' : 'w',
+					       s_spacing, s_spacing);
+			} else {
+				if (op->mem.in_disp != 0) {
+					SStream_concat(
+						O, "%s$%x.%c",
+						op->mem.in_disp >= 0 ? "" : "-",
+						abs(op->mem.in_disp),
+						op->mem.in_disp_size ? 'l' :
+								       'w');
+				}
+
+				if (op->mem.in_disp != 0 &&
+				    op->mem.base_reg != M68K_REG_INVALID) {
+					SStream_concat(O, ",%s", s_spacing);
+				}
+
+				if (op->mem.base_reg != M68K_REG_INVALID) {
+					SStream_concat(
+						O, "%s",
+						getRegName(op->mem.base_reg));
+				}
+
+				if ((op->mem.in_disp != 0 ||
+				     op->mem.base_reg != M68K_REG_INVALID) &&
+				    op->mem.index_reg != M68K_REG_INVALID)
+					SStream_concat(O, ",%s", s_spacing);
+			}
+		} else {
+			if (op->address_mode == M68K_AM_PCI_INDEX_BASE_DISP) {
+				SStream_concat(O, "$%x",
+					       pc + 2 + op->mem.in_disp);
+			} else if (op->mem.in_disp != 0) {
+				SStream_concat(O, "%s$%x",
+					       op->mem.in_disp >= 0 ? "" : "-",
+					       abs(op->mem.in_disp));
+			}
+
+			SStream_concat0(O, "(");
+
+			if (op->address_mode == M68K_AM_PCI_INDEX_BASE_DISP) {
+				SStream_concat0(O, "pc");
+			} else if (op->mem.base_reg != M68K_REG_INVALID) {
+				SStream_concat(O, "a%d",
+					       op->mem.base_reg - M68K_REG_A0);
+			}
+
+			if ((op->address_mode == M68K_AM_PCI_INDEX_BASE_DISP ||
+			     op->mem.base_reg != M68K_REG_INVALID) &&
+			    op->mem.index_reg != M68K_REG_INVALID)
+				SStream_concat(O, ",%s", s_spacing);
 		}
-
-		SStream_concat0(O, "(");
-
-		if (op->address_mode == M68K_AM_PCI_INDEX_BASE_DISP) {
-			SStream_concat0(O, "pc");
-		} else if (op->mem.base_reg != M68K_REG_INVALID) {
-			SStream_concat(O, "a%d",
-				       op->mem.base_reg - M68K_REG_A0);
-		}
-
-		if ((op->address_mode == M68K_AM_PCI_INDEX_BASE_DISP ||
-		     op->mem.base_reg != M68K_REG_INVALID) &&
-		    op->mem.index_reg != M68K_REG_INVALID)
-			SStream_concat(O, ",%s", s_spacing);
 
 		if (op->mem.index_reg != M68K_REG_INVALID) {
 			SStream_concat(O, "%s.%c",
@@ -289,6 +362,11 @@ static void printAddressingMode(SStream *O, unsigned int pc,
 			SStream_concat(O, "%s$%x",
 				       op->mem.in_disp >= 0 ? "" : "-",
 				       abs(op->mem.in_disp));
+
+			if (IS_SYNTAX_MOTOROLA_020(csh))
+				SStream_concat(O, ".%c",
+					       op->mem.in_disp_size ? 'l' :
+								      'w');
 		}
 
 		if (op->mem.base_reg != M68K_REG_INVALID) {
@@ -321,6 +399,10 @@ static void printAddressingMode(SStream *O, unsigned int pc,
 			SStream_concat(O, ",%s%s$%x", s_spacing,
 				       op->mem.out_disp >= 0 ? "" : "-",
 				       abs(op->mem.out_disp));
+			if (IS_SYNTAX_MOTOROLA_020(csh))
+				SStream_concat(O, ".%c",
+					       op->mem.out_disp_size ? 'l' :
+								       'w');
 		}
 
 		SStream_concat0(O, ")");
@@ -421,13 +503,15 @@ void M68K_printInst(MCInst *MI, SStream *O, void *PrinterInfo)
 
 	SStream_concat0(O, " ");
 
-	// this one is a bit spacial so we do special things
+	// this one is a bit special so we do special things
 
 	if (MI->Opcode == M68K_INS_CAS2) {
 		int reg_value_0, reg_value_1;
-		printAddressingMode(O, info->pc, ext, &ext->operands[0]);
+		printAddressingMode(O, info->pc, ext, &ext->operands[0],
+				    MI->csh);
 		SStream_concat0(O, ",");
-		printAddressingMode(O, info->pc, ext, &ext->operands[1]);
+		printAddressingMode(O, info->pc, ext, &ext->operands[1],
+				    MI->csh);
 		SStream_concat0(O, ",");
 		reg_value_0 = ext->operands[2].register_bits >> 4;
 		reg_value_1 = ext->operands[2].register_bits & 0xf;
@@ -438,7 +522,8 @@ void M68K_printInst(MCInst *MI, SStream *O, void *PrinterInfo)
 	}
 
 	for (i = 0; i < ext->op_count; ++i) {
-		printAddressingMode(O, info->pc, ext, &ext->operands[i]);
+		printAddressingMode(O, info->pc, ext, &ext->operands[i],
+				    MI->csh);
 		if ((i + 1) != ext->op_count)
 			SStream_concat(O, ",%s", s_spacing);
 	}

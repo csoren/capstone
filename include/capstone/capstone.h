@@ -331,7 +331,9 @@ typedef enum cs_opt_value {
 		1
 		<< 4, ///< Prints register name with only number (CS_OPT_SYNTAX)
 	CS_OPT_SYNTAX_MASM = 1 << 5, ///< X86 Intel Masm syntax (CS_OPT_SYNTAX).
-	CS_OPT_SYNTAX_MOTOROLA = 1 << 6, ///< MOS65XX use $ as hex prefix
+	CS_OPT_SYNTAX_MOTOROLA =
+		1
+		<< 6, ///< MOS65XX, M68K use Motorola syntax where applicable ($ hex prefix)
 	CS_OPT_SYNTAX_CS_REG_ALIAS =
 		1
 		<< 7, ///< Prints common register alias which are not defined in LLVM (ARM: r9 = sb etc.)
@@ -340,6 +342,8 @@ typedef enum cs_opt_value {
 	CS_OPT_SYNTAX_NO_DOLLAR =
 		1
 		<< 9, ///< Does not print the $ in front of Mips, LoongArch registers.
+	CS_OPT_SYNTAX_MOTOROLA_M68K_000 =
+		1 << 10, ///< M68K use new syntax for 68000 address modes
 	CS_OPT_DETAIL_REAL =
 		1
 		<< 1, ///< If enabled, always sets the real instruction detail. Even if the instruction is an alias.
